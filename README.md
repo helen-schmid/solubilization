@@ -1,31 +1,40 @@
-# solubilization
+# Solubilization
 
 ## Overview
 
-A simple end-to-end pipeline for designing a soluble analogue of a membrane protein using AF2seq
+An end-to-end pipeline for designing a soluble analogue of a membrane protein using AF2seq
 
 ## Installation
 
+First you clone this repository. Replace [install_folder] with the path where you want to install it.
+
+```bash
+git clone https://github.com/alexhilditch/solubilization [install_folder]
+```
+
 AF2seq requires a CUDA-compatible NVIDIA graphics card to run. This was tested on CUDA version 12.4 on an H100 graphics card.
 
-Installation can be done through conda, or an alternative package manager.
+Installation can be done through Conda, or an alternative package manager. Note that this script installs PyRosetta, which requires a licence for commercial use.
 
-Note that this script installs PyRosetta, which requires a licence for commercial use.
+Then follow the following installation steps to create a Conda environment:
 
 ```bash
 conda create --name Solubilization python=3.10 -y
 
 conda activate Solubilization
 
-conda install pip pandas matplotlib numpy"<2.0.0" biopython scipy pdbfixer seaborn libgfortran5 tqdm jupyter ffmpeg pyrosetta fsspec py3dmol chex dm-haiku flax"<0.10.0" dm-tree joblib ml-collections immutabledict optax jaxlib=*=*cuda* jax cuda-nvcc cudnn -c conda-forge -c nvidia  --channel https://conda.graylab.jhu.edu -y
+conda install pip pandas matplotlib numpy"<2.0.0" biopython scipy pdbfixer seaborn libgfortran5 tqdm jupyter ffmpeg pyrosetta fsspec py3dmol chex dm-haiku flax"<0.10.0" dm-tree joblib ml-collections immutabledict optax jaxlib jax cuda-nvcc cudnn -c conda-forge -c nvidia  --channel https://conda.graylab.jhu.edu -y
 
 pip3 install git+https://github.com/sokrypton/ColabDesign.git --no-deps
 
 pip install fsspec
 pip install py3Dmol
 pip install alphafold-colabfold
+```
 
-# download AF2 weights to a params directory - approx 5.3 GB
+We will also need to download the AF2 weights. Note this requires approx 5.3 GB
+
+```bash
 mkdir params
 curl -fsSL https://storage.googleapis.com/alphafold/alphafold_params_2022-12-06.tar | tar x -C params
 ```
@@ -35,10 +44,12 @@ curl -fsSL https://storage.googleapis.com/alphafold/alphafold_params_2022-12-06.
 There is an example submission script run_solubilization.sh provided for reference, created for use with a
 SLURM job scheduler.
 
-Run the pipeline using:
+Run the pipeline using the provided SLURM submission script, or directly in the terminal with:
 
 ```bash
-python solubilization.py
+conda activate Solubilization
+
+python -u solubilization.py --input_pdb 'path/to/input/pdb/1JGJ.pdb' --working_dir '/path/to/output/directory'
 ```
 
 Note that the backpropagation step is by far the slowest step in the pipeline. 
@@ -48,17 +59,17 @@ A good place to start could be to make 10 backbones, and approximately 50 sequen
 Input arguments:
 
 ```bash
--working_dir        - the directory to work in
--input_pdb          - the path to the input pdb file
--fix_pos            - the positions to be fixed during design
--sidechain_loss_pos - the positions to apply the sidechain loss on 
--num_backbones      - the number of backbones to generate by AF2 backpropagation
--nseq               - the number of MPNN generated sequences to sample and predict per backbone
--chain_id           - the chain ID to be designed
--params             - the path to ColabDesign AF params
--mpnn_temp          - the sampling temperature for MPNN: T=0.0 means taking argmax, T>>1.0 means sampling randomly
--mpnn_model         - the model weights to use for MPNN, the soluble model is selected by default
--backbone_noise     - the level of backbone noise for mpnn
+--working_dir        - the directory to work in
+--input_pdb          - the path to the input pdb file
+--fix_pos            - the positions to be fixed during design
+--sidechain_loss_pos - the positions to apply the sidechain loss on 
+--num_backbones      - the number of backbones to generate by AF2 backpropagation
+--nseq               - the number of MPNN generated sequences to sample and predict per backbone
+--chain_id           - the chain ID to be designed
+--params             - the path to ColabDesign AF params
+--mpnn_temp          - the sampling temperature for MPNN: T=0.0 means taking argmax, T>>1.0 means sampling randomly
+--mpnn_model         - the model weights to use for MPNN, the soluble model is selected by default
+--backbone_noise     - the level of backbone noise for mpnn
 ```
 
 ## Inputs

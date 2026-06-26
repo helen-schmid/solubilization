@@ -1,7 +1,7 @@
 """
 An end-to-end pipeline for designing a soluble analogue of a membrane protein
 
-
+Main script
 """
 
 # general imports
@@ -37,17 +37,17 @@ parser = argparse.ArgumentParser()
 
 MPNN_MODELS = ['v_48_002', 'v_48_010', 'v_48_010', 'v_48_020', 'v_48_030']
 
-parser.add_argument("-working_dir", type=str, help="the directory to work in")
-parser.add_argument("-input_pdb", type=str, help='path to the input pdb file')
-parser.add_argument("-fix_pos", type=str, help='the fixed positions to be parsed in')
-parser.add_argument("-sidechain_loss_pos", type=str, default='', help='the positions to apply sidechain loss on')
-parser.add_argument('-params', type=str, default='/work/lpdi/users/hilditch/software/params', help="Path to ColabDesign AF params")
-parser.add_argument('-chain_id', type=str, default='A', help='the chain ID to be designed')
-parser.add_argument('-num_backbones', type=int, default=2, help='the number of backbones to hallucinate')
-parser.add_argument("-mpnn_temp", type=float, default=0.1, help='temperature for the mpnn model (default=0.1)')
-parser.add_argument("-nseq", type=int, default=5, help='number of sequences to predict using ProteinMPNN')
-parser.add_argument("-mpnn_model", choices=MPNN_MODELS, default='v_48_030', help='model weights to use for ProteinMPNN')
-parser.add_argument('-backbone_noise', type=float, default=0.01, help='The variance of random noise to add to the input atomic coordinates (default=0.0)')
+parser.add_argument("--working_dir", type=str, help="the directory to work in")
+parser.add_argument("--input_pdb", type=str, help='path to the input pdb file')
+parser.add_argument("--fix_pos", type=str, default='', help='the fixed positions to be parsed in')
+parser.add_argument("--sidechain_loss_pos", type=str, default='', help='the positions to apply sidechain loss on')
+parser.add_argument('--params', type=str, default='/work/lpdi/users/hilditch/software/params', help="Path to ColabDesign AF params")
+parser.add_argument('--chain_id', type=str, default='A', help='the chain ID to be designed')
+parser.add_argument('--num_backbones', type=int, default=2, help='the number of backbones to hallucinate')
+parser.add_argument("--mpnn_temp", type=float, default=0.1, help='temperature for the mpnn model (default=0.1)')
+parser.add_argument("--nseq", type=int, default=5, help='number of sequences to predict using ProteinMPNN')
+parser.add_argument("--mpnn_model", choices=MPNN_MODELS, default='v_48_030', help='model weights to use for ProteinMPNN')
+parser.add_argument('--backbone_noise', type=float, default=0.01, help='The variance of random noise to add to the input atomic coordinates (default=0.0)')
 
 args = parser.parse_args(sys.argv[1:])
 
