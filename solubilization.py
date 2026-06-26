@@ -88,15 +88,20 @@ def main(args):
     checkpoint_file = os.path.join(args.working_dir, '01_backprop_checkpoint.txt')
     initialise_checkpoint_file(checkpoint_file)
     
-    #create lists of positions to fix and design
-    print(f'Fixing positions: {args.fix_pos}')
+    #check the fixed positions
+    if len(args.fix_pos) != 0:
+        print(f'Fixing positions: {args.fix_pos}')
+    else:
+        print(f'Fixing positions: no fixed positions - full re-design')
 
     #compile the model - now we decide if we use the sidechain loss or not
 
-    if args.sidechain_loss_pos == 0:
+    if len(args.sidechain_loss_pos) == 0:
         use_sidechain_loss = False
+        
     else:
         use_sidechain_loss = True
+        print(f'Applying sidechain loss to positions: {args.sidechain_loss_pos}')
 
     if use_sidechain_loss:
         af_model = mk_af_model(protocol='fixbb',
@@ -185,7 +190,8 @@ def main(args):
     print(f'\n==========================Repredicting sequences with AF2=========================\n')
 
     #collecting the fasta files output from af2seq backprop
-    num_sequences_to_predict = len(glob.glob(f'{af2_seq_dir}/*.fasta'))
+    sequences_to_predict = glob.glob(f'{af2_seq_dir}/*.fasta')
+    num_sequences_to_predict = len(sequences_to_predict)
 
     print(f'Found {num_sequences_to_predict} sequences for forward prediction')
 
@@ -195,7 +201,7 @@ def main(args):
                         data_dir=args.params)
 
     #iterating through the files
-    for file in glob.glob(f'{af2_seq_dir}/*.fasta'):
+    for file in sequences_to_predict:
         with open(file,"r") as fasta:
             lines = fasta.readlines()
             seq_name = lines[0].strip('>').strip('\n')
@@ -246,7 +252,10 @@ def main(args):
 
     print(f'\n=====================Completed AF2 re-prediction for {num_sequences_to_predict} sequences=====================\n')
 
-    num_pdb_files=len(glob.glob(f'{af2_bb_repredictions_dir}/*.pdb'))
+    #collecting the pdb files output from forward af2 prediction
+    files=glob.glob(f'{af2_bb_repredictions_dir}/*.pdb')
+
+    num_pdb_files=len(files)
 
     ############################################################
     # Begin re-designing the sequences with soluble protein MPNN
@@ -262,9 +271,6 @@ def main(args):
     print(f'ProteinMPNN temperature: {args.mpnn_temp}')
     print(f'ProteinMPNN backbone noise: {args.backbone_noise}')
     print(f'ProteinMPNN number of sequences: {args.nseq}\n')
-
-    #collecting the pdb files output from forward af2 prediction
-    files=glob.glob(f'{af2_bb_repredictions_dir}/*.pdb')
 
     #compiling the mpnn model
     mpnn_model = mk_mpnn_model(args.mpnn_model,

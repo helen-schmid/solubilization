@@ -15,8 +15,8 @@ conda init bash
 conda activate ProteinDesign_kuma
 
 python -u /work/lpdi/users/hilditch/scripts/repos/solubilization/solubilization.py \
-        --working_dir ./test \
-        --input_pdb ./1jgj.pdb \
-        --num_backbones 3\
+        --working_dir ./output \
+        --input_pdb ./input/1jgj.pdb \
+        --num_backbones 1 \
         --fix_pos '73,76,79,80,83,108,109,112,127,130,131,134,171,174,175,178,201,204,205' \
         --sidechain_loss_pos '73,76,79,80,83,108,109,112,127,130,131,134,171,174,175,178,201,204,205'

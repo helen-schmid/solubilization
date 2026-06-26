@@ -76,7 +76,7 @@ Input arguments:
 
 The only input is a protein structure in PDB format. You need to assign positions to be fixed during design if necessary (optional), and positions which you would like to assign the sidechain loss on (optional).
 
-## Filters
+## Scores
 
 Each of the designed sequences is evaluated by Alphafold2 and in PyRosetta creating the following scores:
 
