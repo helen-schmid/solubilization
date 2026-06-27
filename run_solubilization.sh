@@ -1,6 +1,4 @@
 #!/bin/bash
-#SBATCH --chdir /work/lpdi/users/hilditch/scripts/repos/solubilization
-#SBATCH --job-name=solubilize
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 8
@@ -10,11 +8,11 @@
 #SBATCH --time 10:00:00
 #SBATCH --output=solubilize.log
 
-source /home/hilditch/miniconda3/etc/profile.d/conda.sh
-conda init bash
-conda activate ProteinDesign_kuma
+CONDA_BASE=$(conda info --base)
+source ${CONDA_BASE}/bin/activate ${CONDA_BASE}/envs/Solubilization
 
-python -u /work/lpdi/users/hilditch/scripts/repos/solubilization/solubilization.py \
+python -u solubilization.py \
+        --params path/to/params \
         --working_dir ./output \
         --input_pdb ./input/1jgj.pdb \
         --num_backbones 1 \

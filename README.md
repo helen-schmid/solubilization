@@ -23,12 +23,10 @@ conda create --name Solubilization python=3.10 -y
 
 conda activate Solubilization
 
-conda install pip pandas matplotlib numpy"<2.0.0" biopython scipy pdbfixer seaborn libgfortran5 tqdm jupyter ffmpeg pyrosetta fsspec py3dmol chex dm-haiku flax"<0.10.0" dm-tree joblib ml-collections immutabledict optax jaxlib jax cuda-nvcc cudnn -c conda-forge -c nvidia  --channel https://conda.graylab.jhu.edu -y
+CONDA_OVERRIDE_CUDA="12.4" conda install pip pandas matplotlib numpy"<2.0.0" biopython scipy pdbfixer seaborn libgfortran5 tqdm jupyter ffmpeg pyrosetta fsspec py3dmol chex dm-haiku flax"<0.10.0" dm-tree joblib ml-collections immutabledict optax jaxlib=*=*cuda12* jax cuda-nvcc cudnn -c conda-forge -c nvidia  --channel https://conda.rosettacommons.org -y
 
-pip3 install git+https://github.com/sokrypton/ColabDesign.git --no-deps
+pip install git+https://github.com/sokrypton/ColabDesign.git --no-deps
 
-pip install fsspec
-pip install py3Dmol
 pip install alphafold-colabfold
 ```
 

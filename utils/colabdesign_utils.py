@@ -113,7 +113,7 @@ def rank_and_write_pdb(af_model, name, write_all=False, renum_pdb = True, predic
     
     for n in ranking:
       p_str = ""
-      p_str += to_pdb_str(jax.tree_map(lambda x:x[n],p))
+      p_str += to_pdb_str(jax.tree_util.tree_map(lambda x:x[n],p))
       p_str += "END\n"
 
       if predict==True:
@@ -128,7 +128,7 @@ def rank_and_write_pdb(af_model, name, write_all=False, renum_pdb = True, predic
       elif predict==False:
         for n in ranking:
           p_str = ""
-          p_str += to_pdb_str(jax.tree_map(lambda x:x[n],p))
+          p_str += to_pdb_str(jax.tree_util.tree_map(lambda x:x[n],p))
           p_str += "END\n"
       
           with open(name + '_backprop_model.pdb', 'w') as f:
