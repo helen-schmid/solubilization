@@ -107,7 +107,7 @@ terminal with:
 ```bash
 conda activate Solubilization
 
-python -u filtering.py --working_dir '/path/to/output/directory' --input_csv '/path/to/02_final_prediction_scores.csv' --ligand_smiles 'ligand SMILES string' --af3_sif '/path/to/alphafold3.sif' --af3_weights_dir '/path/to/af3/weights' --af3_db_dir '/path/to/af3/databases' --af3_shared_root '/path/to/shared/storage/root'
+python -u filtering.py --working_dir '/path/to/output/directory' --input_csv '/path/to/02_final_prediction_scores.csv' --ligand_ccd_code 'RET-11CIS' --ligand_ccd_path 'utils/data/retinal_11cis.cif' --af3_sif '/path/to/alphafold3.sif' --af3_weights_dir '/path/to/af3/weights' --af3_db_dir '/path/to/af3/databases' --af3_shared_root '/path/to/shared/storage/root' --model_seeds '1,2,3'
 ```
 
 Input arguments:
@@ -115,7 +115,9 @@ Input arguments:
 ```bash
 --working_dir         - the directory to work in
 --input_csv           - path to the stage-04 scores csv from solubilization.py
---ligand_smiles       - SMILES string of the native ligand to cofold each design with
+--ligand_ccd_code     - PDB Chemical Component Dictionary code of the native ligand (e.g. RET for retinal) - preferred over --ligand_smiles, gives reliable atom names for the isomer check
+--ligand_ccd_path     - path to a user-provided CCD mmCIF file defining --ligand_ccd_code's structure (e.g. utils/data/retinal_11cis.cif) - use this when the standard CCD entry has the wrong isomer/geometry for your ligand
+--ligand_smiles       - SMILES string of the native ligand, used only if --ligand_ccd_code is not given
 --af3_sif             - path to the AF3 singularity container (.sif)
 --af3_weights_dir     - path to the AF3 code + model weights directory
 --af3_db_dir          - path to the AF3 genetic/template databases
@@ -124,13 +126,32 @@ Input arguments:
 --ligand_chain_id     - chain ID to assign the ligand in the AF3 input json (default=B)
 --model_seeds         - comma-separated AF3 model seeds to run per design (default=1)
 --min_top_model_plddt - skip designs below this stage-04 top_model_plddt before cofolding (default=0.0, i.e. no filtering)
+--dihedral_atoms      - comma-separated names of the 4 ligand atoms defining the isomer-diagnostic dihedral (default=C10,C11,C12,C13, retinal's C11=C12 bond)
+--cis_cutoff          - degrees; abs(dihedral) below this is classified cis (default=90.0)
 ```
 
 Scores are written to `03_af3_scores.csv`: `af3_iptm`, `af3_ptm`, `af3_ranking_score`,
-`af3_chain_pair_pae_min`, `af3_fraction_disordered`, `af3_has_clash`. As with the rest
-of the pipeline, there is no automatic pass/fail filtering - use `--min_top_model_plddt`
-to control how many (expensive, live-MSA) cofolds get submitted, and apply your own
-cutoffs on the resulting scores.
+`af3_chain_pair_pae_min`, `af3_fraction_disordered`, `af3_has_clash`, `af3_ligand_dihedral`,
+`af3_ligand_is_cis`. As with the rest of the pipeline, there is no automatic pass/fail
+filtering - use `--min_top_model_plddt` to control how many (expensive, live-MSA)
+cofolds get submitted, and apply your own cutoffs on the resulting scores.
+
+AF3 can't be told to predict a specific ligand isomer, so for an isomer-sensitive ligand
+like retinal, `filtering.py` samples multiple `--model_seeds`, measures the actual
+predicted `C11=C12` dihedral in each one (`af3_ligand_dihedral`, via Biopython), and
+records the highest-`af3_ranking_score` sample among the ones that came out cis
+(`af3_ligand_is_cis=True`). If none of the sampled seeds came out cis, it falls back to
+the best sample overall and reports `af3_ligand_is_cis=False`, so you can still see and
+filter those out - it never silently drops a design's row.
+
+Note that the standard PDB ligand code `RET` is not a neutral choice for retinal: its
+own official ideal coordinates are all-trans (confirmed directly - the `C10-C11=C12-C13`
+dihedral of RET's reference geometry measures ~180 degrees), and AF3 builds its ligand
+reference conformer from exactly that geometry. `utils/data/retinal_11cis.cif` (generated
+by `utils/generate_retinal_11cis_ccd.py`) redefines the same atom names and bonds as `RET`
+but with the `C11=C12` bond geometry corrected to cis, so pass `--ligand_ccd_code
+'RET-11CIS' --ligand_ccd_path 'utils/data/retinal_11cis.cif'` rather than plain
+`--ligand_ccd_code 'RET'` for retinal specifically.
 
 ## Scores
 

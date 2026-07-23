@@ -1,23 +1,42 @@
 import os
+import glob
 import json
+import math
 import subprocess
 
-def build_af3_json(name, protein_seq, ligand_smiles, protein_chain_id='A', ligand_chain_id='B', model_seeds=[1]):
+from Bio.PDB import MMCIFParser
+from Bio.PDB.vectors import calc_dihedral
+
+cif_parser = MMCIFParser(QUIET=True)
+
+def build_af3_json(name, protein_seq, ligand_ccd_code=None, ligand_smiles=None,
+                    protein_chain_id='A', ligand_chain_id='B', model_seeds=[1],
+                    user_ccd_path=None):
     '''
     Build an AF3 cofold input record for one designed monomer + its native ligand
 
     name             - design ID, used as both the json's "name" field and the output filename
     protein_seq      - the designed protein sequence to cofold
-    ligand_smiles    - SMILES string of the native ligand
+    ligand_ccd_code  - PDB Chemical Component Dictionary code for the ligand (e.g. 'RET').
+                        Preferred over ligand_smiles when available: gives the correct template
+                        geometry/connectivity and standard atom names in AF3's output, which
+                        get_ligand_dihedral/select_best_af3_sample depend on.
+    ligand_smiles    - SMILES string of the ligand, used only if ligand_ccd_code is not given
     protein_chain_id - chain ID to assign the protein (default='A')
     ligand_chain_id  - chain ID to assign the ligand (default='B')
     model_seeds      - list of integer AF3 seeds to run
+    user_ccd_path    - optional path to a user-provided CCD mmCIF file (e.g.
+                        utils/data/retinal_11cis.cif) defining ligand_ccd_code's structure -
+                        for ligands not in the standard CCD, or needing corrected geometry
+                        (e.g. the standard RET entry is definitionally all-trans retinal)
 
     returns a dict matching AF3's native json schema (dialect='alphafold3'), ready for json.dump.
     No unpairedMsa/pairedMsa fields are set, so AF3 runs its own live MSA search -
     these are novel designed sequences, not known binders with a precomputed MSA.
     '''
-    return {
+    ligand_entry = {"ccdCodes": [ligand_ccd_code]} if ligand_ccd_code else {"smiles": ligand_smiles}
+
+    af3_json = {
         "name": name,
         "modelSeeds": model_seeds,
         "sequences": [
@@ -30,13 +49,18 @@ def build_af3_json(name, protein_seq, ligand_smiles, protein_chain_id='A', ligan
             {
                 "ligand": {
                     "id": ligand_chain_id,
-                    "smiles": ligand_smiles
+                    **ligand_entry
                 }
             }
         ],
         "dialect": "alphafold3",
         "version": 3
     }
+
+    if user_ccd_path:
+        af3_json["userCCDPath"] = user_ccd_path
+
+    return af3_json
 
 def run_af3_singularity(json_path, output_dir, af3_sif, af3_weights_dir, af3_db_dir, af3_shared_root):
     '''
@@ -89,3 +113,72 @@ def parse_af3_summary(summary_json_path):
         'af3_fraction_disordered': summary['fraction_disordered'],
         'af3_has_clash': summary['has_clash']
     }
+
+def get_ligand_dihedral(cif_path, ligand_chain_id, atom_names):
+    '''
+    Compute a dihedral angle (degrees, -180 to 180) from 4 named atoms in a ligand residue
+
+    cif_path        - path to a predicted AF3 model (<name>_model.cif)
+    ligand_chain_id - chain ID of the ligand in the predicted structure
+    atom_names      - list of 4 atom names defining the dihedral, in order
+                       (e.g. ['C10','C11','C12','C13'] for retinal's C11=C12 bond)
+
+    returns the dihedral angle in degrees, or None if any named atom is missing
+
+    NOTE: atom names must match the ligand's PDB Chemical Component Dictionary naming -
+    only reliable when the AF3 input ligand was specified via ccdCodes, not smiles
+    '''
+    model = cif_parser.get_structure('structure', cif_path)[0]
+    ligand_residue = next(iter(model[ligand_chain_id]))
+
+    try:
+        vectors = [ligand_residue[name].get_vector() for name in atom_names]
+    except KeyError as e:
+        print(f'ERROR: atom {e} not found in ligand chain {ligand_chain_id} of {cif_path}')
+        return None
+
+    return math.degrees(calc_dihedral(*vectors))
+
+def select_best_af3_sample(model_dir, name, ligand_chain_id, dihedral_atoms, cis_cutoff=90.0):
+    '''
+    Across all seed/sample AF3 outputs for one design, pick the best cis-isomer sample
+
+    model_dir       - AF3 output directory for one design (contains seed-*_sample-*/ subfolders)
+    name            - design ID (matches the AF3 input json's "name" field)
+    ligand_chain_id - chain ID of the ligand
+    dihedral_atoms  - list of 4 atom names defining the isomer-diagnostic dihedral
+    cis_cutoff      - degrees; abs(dihedral) < cutoff is classified cis (default=90.0)
+
+    returns a dict combining parse_af3_summary's scores plus af3_ligand_dihedral and
+    af3_ligand_is_cis, for whichever sample was selected - or None if no sample could
+    be scored at all (e.g. every model.cif was missing the named atoms)
+
+    Picks the highest-ranking_score sample among those classified cis; if none are cis,
+    falls back to the highest-ranking_score sample overall and reports
+    af3_ligand_is_cis=False - AF3 can't be constrained to a specific isomer, so this is
+    a post-hoc pick-and-flag, not a guarantee a cis structure exists for every design.
+    '''
+    sample_dirs = sorted(glob.glob(os.path.join(model_dir, 'seed-*_sample-*')))
+
+    samples = []
+    for sample_dir in sample_dirs:
+        cif_path = os.path.join(sample_dir, f'{name}_model.cif')
+        summary_path = os.path.join(sample_dir, f'{name}_summary_confidences.json')
+
+        dihedral = get_ligand_dihedral(cif_path, ligand_chain_id, dihedral_atoms)
+        if dihedral is None:
+            continue
+
+        scores = parse_af3_summary(summary_path)
+        scores['af3_ligand_dihedral'] = dihedral
+        scores['af3_ligand_is_cis'] = abs(dihedral) < cis_cutoff
+
+        samples.append(scores)
+
+    if len(samples) == 0:
+        print(f'ERROR: no valid AF3 samples found in {model_dir}')
+        return None
+
+    cis_samples = [s for s in samples if s['af3_ligand_is_cis']]
+
+    return max(cis_samples if len(cis_samples) > 0 else samples, key=lambda s: s['af3_ranking_score'])
