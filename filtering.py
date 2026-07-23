@@ -57,6 +57,11 @@ def main(args):
         print('ERROR: must provide either --ligand_ccd_code or --ligand_smiles')
         return
 
+    # singularity requires absolute paths for its bind mounts, so resolve this
+    # up front - every path derived from working_dir below (and passed into
+    # run_af3_singularity) then stays absolute too
+    args.working_dir = os.path.abspath(args.working_dir)
+
     # set up the directories for the elements of this script
     af3_inputs_dir = os.path.join(args.working_dir, '05_af3_inputs')
     af3_outputs_dir = os.path.join(args.working_dir, '06_af3_outputs')
