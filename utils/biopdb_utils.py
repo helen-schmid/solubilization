@@ -5,6 +5,7 @@ from Bio.PDB import *
 from Bio.PDB import PDBParser
 from Bio.PDB.PDBIO import PDBIO
 from Bio.PDB import Superimposer
+from Bio.PDB import NeighborSearch
 from Bio import BiopythonWarning
 
 import warnings
@@ -142,3 +143,44 @@ def align_pdbs(ref_model, sample_model, residues:list=[], ref_residues:list=[],
         return rmsd, sample_model
     else:
         return rmsd
+
+def get_ligand_contacts(pdb_filename:str, chain_id:str, ligand_resname:str, distance:float=5.0) -> list:
+    '''
+    Find protein residues in chain_id with a heavy atom within distance of ligand_resname's heavy atoms
+
+    pdb_filename    - path to the input pdb file
+    chain_id        - chain ID of the protein to check for ligand contacts
+    ligand_resname  - 3-letter residue name of the ligand (e.g. RET)
+    distance        - distance cutoff in Angstroms, heavy atoms only (default=5.0)
+
+    returns a sorted list of protein residue numbers (int) with at least one heavy atom
+    within distance of the ligand's heavy atoms
+
+    NOTE: only heavy atoms (no hydrogens) are considered, on both the protein and ligand side
+    NOTE: the ligand is matched by residue name anywhere in the structure (not restricted to chain_id),
+          since a ligand HETATM may share a chain letter with the protein (as in input/1jgj.pdb)
+    '''
+    model = pdb_parser.get_structure('structure', pdb_filename)[0]
+
+    ligand_atoms = [atom for residue in model.get_residues() for atom in residue
+                    if residue.get_resname() == ligand_resname and atom.element != 'H']
+
+    if len(ligand_atoms) == 0:
+        print(f'ERROR: no atoms found for ligand "{ligand_resname}" in {pdb_filename}')
+        return []
+
+    ns = NeighborSearch(ligand_atoms)
+
+    contacts = []
+    for residue in model[chain_id]:
+        if residue.get_full_id()[3][0] != " ":
+            continue # skip HETATM residues - only fix protein residues
+
+        for atom in residue:
+            if atom.element == 'H':
+                continue
+            if ns.search(atom.coord, distance):
+                contacts.append(residue.get_id()[1])
+                break
+
+    return sorted(contacts)

@@ -74,6 +74,23 @@ Input arguments:
 
 The only input is a protein structure in PDB format. You need to assign positions to be fixed during design if necessary (optional), and positions which you would like to assign the sidechain loss on (optional).
 
+`find_ligand_contacts.py` can help pick those fixed positions: given a PDB file with a
+bound ligand, it prints the protein residues within a distance cutoff of the ligand
+(heavy atoms only), formatted as a ready-to-paste `--fix_pos` flag.
+
+```bash
+python find_ligand_contacts.py --input_pdb input/1jgj.pdb --chain_id A --ligand_resname RET --distance 5.0
+```
+
+Input arguments:
+
+```bash
+--input_pdb      - path to the input pdb file
+--chain_id       - the chain ID of the protein to check for ligand contacts (default=A)
+--ligand_resname - the 3-letter residue name of the ligand (e.g. RET)
+--distance       - distance cutoff in Angstroms, heavy atoms only (default=5.0)
+```
+
 ## Filtering
 
 `filtering.py` takes the designs from `02_final_prediction_scores.csv` (stage 4 of
