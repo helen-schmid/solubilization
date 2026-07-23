@@ -74,6 +74,47 @@ Input arguments:
 
 The only input is a protein structure in PDB format. You need to assign positions to be fixed during design if necessary (optional), and positions which you would like to assign the sidechain loss on (optional).
 
+## Filtering
+
+`filtering.py` takes the designs from `02_final_prediction_scores.csv` (stage 4 of
+`solubilization.py`) and cofolds each one with its native ligand using AlphaFold3, to
+check whether the solubilized analogue still folds a pocket that binds the ligand.
+There is an example submission script `run_filtering.sh` provided for reference,
+created for use with a SLURM job scheduler on a cluster with a shared AF3 install
+(container + weights + databases, see `--af3_sif`/`--af3_weights_dir`/`--af3_db_dir`
+below).
+
+Run the pipeline using the provided SLURM submission script, or directly in the
+terminal with:
+
+```bash
+conda activate Solubilization
+
+python -u filtering.py --working_dir '/path/to/output/directory' --input_csv '/path/to/02_final_prediction_scores.csv' --ligand_smiles 'ligand SMILES string' --af3_sif '/path/to/alphafold3.sif' --af3_weights_dir '/path/to/af3/weights' --af3_db_dir '/path/to/af3/databases' --af3_shared_root '/path/to/shared/storage/root'
+```
+
+Input arguments:
+
+```bash
+--working_dir         - the directory to work in
+--input_csv           - path to the stage-04 scores csv from solubilization.py
+--ligand_smiles       - SMILES string of the native ligand to cofold each design with
+--af3_sif             - path to the AF3 singularity container (.sif)
+--af3_weights_dir     - path to the AF3 code + model weights directory
+--af3_db_dir          - path to the AF3 genetic/template databases
+--af3_shared_root     - shared storage root to bind-mount into the container
+--protein_chain_id    - chain ID to assign the designed protein in the AF3 input json (default=A)
+--ligand_chain_id     - chain ID to assign the ligand in the AF3 input json (default=B)
+--model_seeds         - comma-separated AF3 model seeds to run per design (default=1)
+--min_top_model_plddt - skip designs below this stage-04 top_model_plddt before cofolding (default=0.0, i.e. no filtering)
+```
+
+Scores are written to `03_af3_scores.csv`: `af3_iptm`, `af3_ptm`, `af3_ranking_score`,
+`af3_chain_pair_pae_min`, `af3_fraction_disordered`, `af3_has_clash`. As with the rest
+of the pipeline, there is no automatic pass/fail filtering - use `--min_top_model_plddt`
+to control how many (expensive, live-MSA) cofolds get submitted, and apply your own
+cutoffs on the resulting scores.
+
 ## Scores
 
 Each of the designed sequences is evaluated by Alphafold2 and in PyRosetta creating the following scores:
