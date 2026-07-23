@@ -84,6 +84,11 @@ def main(args):
     model_seeds = [int(s) for s in args.model_seeds.split(',')]
     dihedral_atoms = args.dihedral_atoms.split(',')
 
+    # AF3 resolves a relative userCCDPath against the input json's own directory
+    # (05_af3_inputs/), not the cwd - resolve to an absolute path up front so it
+    # works regardless of --working_dir's location/depth
+    ligand_ccd_path = os.path.abspath(args.ligand_ccd_path) if args.ligand_ccd_path else None
+
     print(f'\n==========Starting AF3 cofold filtering for {len(rows)} designs==========\n')
 
     for row in rows:
@@ -107,7 +112,7 @@ def main(args):
                                    args.protein_chain_id,
                                    args.ligand_chain_id,
                                    model_seeds,
-                                   args.ligand_ccd_path)
+                                   ligand_ccd_path)
 
         json_path = os.path.join(af3_inputs_dir, f'{design_id}.json')
         with open(json_path, 'w') as f:
